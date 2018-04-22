@@ -1,28 +1,23 @@
 {
   "type": "panel",
-  "name": "Plotly",
-  "id": "natel-plotly-panel",
+  "name": "WindRose",
+  "id": "fatcloud-windrose-panel",
 
   "info": {
-    "description": "Scatter plots and more",
+    "description": "windrose plots",
     "author": {
-      "name": "Natel Energy"
+      "name": "Cloud",
+      "url": "https://grafana.com"
     },
-    "keywords": [ "plotly", "scatter", "panel" ],
+    "keywords": ["plotly", "windrose", "panel"],
     "logos": {
       "small": "img/plotly_logo.svg",
       "large": "img/plotly_logo.svg"
     },
-    "links": [
-      {"name": "Plot.ly", "url": "https://plot.ly/javascript/"},
-      {"name": "Project Page", "url": "https://github.com/NatelEnergy/grafana-plotly-panel"},
-      {"name": "Natel Energy", "url": "http://www.natelenergy.com/"}
-    ],
+    "links": [{"name": "Plot.ly", "url": "https://plot.ly/javascript/"}],
     "screenshots": [
-      { "name": "Scatter",     "path": "img/screenshot-scatter.png"    },
-      { "name": "Scatter 2D",  "path": "img/screenshot-scatter-1.png"  },
-      { "name": "Scatter 3D",  "path": "img/screenshot-scatter-3d.png" },
-      { "name": "Options",     "path": "img/screenshot-options.png"    }
+      {"name": "Showcase", "path": "src/img/screenshot-scatter.png"},
+      {"name": "Options", "path": "src/img/screenshot-options.png"}
     ],
     "version": "%VERSION%",
     "updated": "%TODAY%"
@@ -30,6 +25,6 @@
 
   "dependencies": {
     "grafanaVersion": "4.x.x",
-    "plugins": [ ]
+    "plugins": []
   }
 }

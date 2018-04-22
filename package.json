@@ -1,7 +1,7 @@
 {
-  "name": "natel-plotly-panel",
-  "version": "0.0.5",
-  "description": "Plot.ly Panel Plugin for Grafana",
+  "name": "windrose-panel",
+  "version": "0.0.1",
+  "description": "Wind Rose Plugin for Grafana",
   "scripts": {
     "build": "grunt",
     "test": "./node_modules/karma/bin/karma start",
@@ -13,7 +13,7 @@
   "keywords": ["plotly", "scatter", "grafana", "plugin", "panel"],
   "repository": {
     "type": "git",
-    "url": "https://github.com/NatelEnergy/grafana-plotly-panel.git"
+    "url": ""
   },
   "prettier": {
     "singleQuote": true,
@@ -26,6 +26,7 @@
   "dependencies": {
     "lodash": "^4.17.4",
     "moment": "^2.18.1",
+    "percentile": "^1.2.0",
     "plotly.js": "^1.35",
     "q": "^1.5.0",
     "systemjs": "^0.19.47"
