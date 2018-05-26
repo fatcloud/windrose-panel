@@ -7,7 +7,7 @@
     "description": "windrose plots",
     "author": {
       "name": "Cloud",
-      "url": "https://grafana.com"
+      "url": "https://github.com/fatcloud"
     },
     "keywords": ["plotly", "windrose", "panel"],
     "logos": {

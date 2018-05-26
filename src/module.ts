@@ -7,45 +7,12 @@ import moment from 'moment';
 import angular from 'angular';
 import $ from 'jquery';
 
+import percentile from './percentile';
 import * as Plotly from './lib/plotly.min';
 
 var windRoseTestLayout = {
   radialaxis: {ticksuffix: '%'},
 };
-
-var windRoseTestData = [
-  {
-    r: [77.5, 72.5, 70.0, 45.0, 22.5, 42.5, 40.0, 62.5],
-    t: ['North', 'N-E', 'East', 'S-E', 'South', 'S-W', 'West', 'N-W'],
-    name: '11-14 m/s',
-    marker: {color: 'rgb(106,81,163)'},
-    type: 'area',
-  },
-
-  {
-    r: [57.5, 50.0, 45.0, 35.0, 20.0, 22.5, 37.5, 55.0],
-    t: ['North', 'N-E', 'East', 'S-E', 'South', 'S-W', 'West', 'N-W'],
-    name: '8-11 m/s',
-    marker: {color: 'rgb(158,154,200)'},
-    type: 'area',
-  },
-
-  {
-    r: [40.0, 30.0, 30.0, 35.0, 7.5, 7.5, 32.5, 40.0],
-    t: ['North', 'N-E', 'East', 'S-E', 'South', 'S-W', 'West', 'N-W'],
-    name: '5-8 m/s',
-    marker: {color: 'rgb(203,201,226)'},
-    type: 'area',
-  },
-
-  {
-    r: [20.0, 7.5, 15.0, 22.5, 2.5, 2.5, 12.5, 22.5],
-    t: ['North', 'N-E', 'East', 'S-E', 'South', 'S-W', 'West', 'N-W'],
-    name: '< 5 m/s',
-    marker: {color: 'rgb(242,240,247)'},
-    type: 'area',
-  },
-];
 
 class PlotlyPanelCtrl extends MetricsPanelCtrl {
   static templateUrl = 'templates/module.html';
@@ -64,15 +31,8 @@ class PlotlyPanelCtrl extends MetricsPanelCtrl {
         size: null,
       },
       settings: {
-        type: 'scatter',
-        mode: 'lines+markers',
+        plot: 'scatter',
         displayModeBar: false,
-        line: {
-          color: '#005f81',
-          width: 6,
-          dash: 'solid',
-          shape: 'linear',
-        },
         marker: {
           size: 15,
           symbol: 'circle',
@@ -81,18 +41,19 @@ class PlotlyPanelCtrl extends MetricsPanelCtrl {
           sizemode: 'diameter',
           sizemin: 3,
           sizeref: 0.2,
-          line: {
-            color: '#DDD',
-            width: 0,
-          },
           showscale: true,
         },
         color_option: 'ramp',
       },
       layout: {
+        //radialaxis: {ticksuffix: '%'},
         autosize: false,
-        showlegend: false,
-        legend: {orientation: 'v'},
+        showlegend: true,
+        legend: {
+          orientation: 'v',
+          x: 1,
+          y: 1,
+        },
         dragmode: 'lasso', // (enumerated: "zoom" | "pan" | "select" | "lasso" | "orbit" | "turntable" )
         hovermode: 'closest',
         plot_bgcolor: 'transparent',
@@ -107,29 +68,13 @@ class PlotlyPanelCtrl extends MetricsPanelCtrl {
           l: 65,
           r: 20,
         },
-        xaxis: {
-          showgrid: true,
-          zeroline: false,
-          type: 'linear',
-          gridcolor: '#444444',
-          rangemode: 'normal', // (enumerated: "normal" | "tozero" | "nonnegative" )
-        },
-        yaxis: {
-          showgrid: true,
-          zeroline: false,
-          type: 'linear',
-          gridcolor: '#444444',
-          rangemode: 'normal', // (enumerated: "normal" | "tozero" | "nonnegative" )
-        },
-        scene: {
-          xaxis: {title: 'X AXIS'},
-          yaxis: {title: 'Y AXIS'},
-          zaxis: {title: 'Z AXIS'},
-        },
+        angle: {},
+        distance: {},
       },
     },
   };
 
+  traces: any;
   trace: any;
   layout: any;
   graph: any;
@@ -138,9 +83,6 @@ class PlotlyPanelCtrl extends MetricsPanelCtrl {
   segs: any;
   mouse: any;
   data: any;
-
-  // Used for the editor control
-  subTabIndex: 0;
 
   /** @ngInject **/
   constructor($scope, $injector, $window, private $rootScope, private uiSegmentSrv) {
@@ -156,7 +98,7 @@ class PlotlyPanelCtrl extends MetricsPanelCtrl {
 
     // Update existing configurations
     this.panel.pconfig.layout.paper_bgcolor = 'transparent';
-    this.panel.pconfig.layout.plot_bgcolor = this.panel.pconfig.layout.paper_bgcolor;
+    this.panel.pconfig.layout.plot_bgcolor = 'transparent'; //this.panel.pconfig.layout.paper_bgcolor;
 
     // get the css rule of grafana graph axis text
     const labelStyle = this.getCssRule('div.flot-text');
@@ -172,12 +114,13 @@ class PlotlyPanelCtrl extends MetricsPanelCtrl {
         .toString();
 
       // set gridcolor (like grafana graph)
-      this.panel.pconfig.layout.xaxis.gridcolor = color;
-      this.panel.pconfig.layout.yaxis.gridcolor = color;
+      // this.panel.pconfig.layout.xaxis.gridcolor = color;
+      // this.panel.pconfig.layout.yaxis.gridcolor = color;
     }
 
     let cfg = this.panel.pconfig;
     this.trace = {};
+    this.traces = [];
     this.layout = $.extend(true, {}, this.panel.pconfig.layout);
 
     this.events.on('init-edit-mode', this.onInitEditMode.bind(this));
@@ -238,14 +181,13 @@ class PlotlyPanelCtrl extends MetricsPanelCtrl {
         value: this.panel.pconfig.settings.marker.symbol,
       }),
     };
-    this.subTabIndex = 0; // select the options
 
     let cfg = this.panel.pconfig;
     this.axis = [
       {
-        disp: 'X Axis',
+        disp: 'Angle',
         idx: 1,
-        config: cfg.layout.xaxis,
+        config: cfg.layout.angle,
         metric: name => {
           if (name) {
             cfg.mapping.x = name;
@@ -254,9 +196,9 @@ class PlotlyPanelCtrl extends MetricsPanelCtrl {
         },
       },
       {
-        disp: 'Y Axis',
+        disp: 'Distance',
         idx: 2,
-        config: cfg.layout.yaxis,
+        config: cfg.layout.distance,
         metric: name => {
           if (name) {
             cfg.mapping.y = name;
@@ -264,25 +206,7 @@ class PlotlyPanelCtrl extends MetricsPanelCtrl {
           return cfg.mapping.y;
         },
       },
-      {
-        disp: 'Z Axis',
-        idx: 3,
-        config: cfg.layout.yaxis,
-        metric: name => {
-          if (name) {
-            cfg.mapping.z = name;
-          }
-          return cfg.mapping.z;
-        },
-      },
     ];
-  }
-
-  isAxisVisible(axis) {
-    if (axis.idx === 3) {
-      return this.panel.pconfig.settings.type === 'scatter3d';
-    }
-    return true;
   }
 
   onSegsChanged() {
@@ -303,32 +227,26 @@ class PlotlyPanelCtrl extends MetricsPanelCtrl {
     }
 
     if (!this.initalized) {
-      let s = this.panel.pconfig.settings;
-
       let options = {
         showLink: false,
         displaylogo: false,
-        displayModeBar: s.displayModeBar,
+        displayModeBar: this.panel.pconfig.settings.displayModeBar,
         modeBarButtonsToRemove: ['sendDataToCloud'], //, 'select2d', 'lasso2d']
       };
 
-      let data = [this.trace];
+      let data = this.traces;
       let rect = this.graph.getBoundingClientRect();
 
-      let old = this.layout;
       this.layout = $.extend(true, {}, this.panel.pconfig.layout);
       this.layout.height = this.height;
       this.layout.width = rect.width;
-      if (old) {
-        this.layout.xaxis.title = old.xaxis.title;
-        this.layout.yaxis.title = old.yaxis.title;
-      }
 
-      if (this.panel.pconfig.settings.type == 'windrose') {
-        this.layout.radialaxis = {ticksuffix: '%'};
-        data = windRoseTestData;
-      }
       Plotly.newPlot(this.graph, data, this.layout, options);
+      // ////////////////////////// WORKAROUND NOTICE: Get rid of white background
+      // var plotbg = document.getElementsByClassName('plotbg');
+      // if (typeof plotbg[0] != 'undefined'){
+      //   plotbg[0].children[0].setAttribute('style', 'fill-opacity: 0');
+      // }
 
       this.graph.on('plotly_click', data => {
         for (let i = 0; i < data.points.length; i++) {
@@ -344,28 +262,9 @@ class PlotlyPanelCtrl extends MetricsPanelCtrl {
         }
       });
 
-      // if(false) {
-      //   this.graph.on('plotly_hover', (data, xxx) => {
-      //     console.log( 'HOVER!!!', data, xxx, this.mouse );
-      //     if(data.points.length>0) {
-      //       var idx = 0;
-      //       var pt = data.points[idx];
-
-      //       var body = '<div class="graph-tooltip-time">'+ pt.pointNumber +'</div>';
-      //       body += "<center>";
-      //       body += pt.x + ', '+pt.y;
-      //       body += "</center>";
-
-      //       this.$tooltip.html( body ).place_tt( this.mouse.pageX + 10, this.mouse.pageY );
-      //     }
-      //   }).on('plotly_unhover', (data) => {
-      //     this.$tooltip.detach();
-      //   });
-      // }
-
       this.graph.on('plotly_selected', data => {
         if (data.points.length === 0) {
-          console.log('Nothign Selected', data);
+          console.log('Nothing Selected', data);
           return;
         }
 
@@ -406,6 +305,10 @@ class PlotlyPanelCtrl extends MetricsPanelCtrl {
       let rect = this.graph.getBoundingClientRect();
       this.layout.width = rect.width;
       this.layout.height = this.height;
+
+      // ////////////// WORKAROUND NOTICE: get rid of this error "Resize must be passed a displayed plot div element."
+      let e = window.getComputedStyle(this.graph).display;
+      if (!e || 'none' === e) return;
       Plotly.Plots.resize(this.graph);
     }
     this.sizeChanged = false;
@@ -417,10 +320,6 @@ class PlotlyPanelCtrl extends MetricsPanelCtrl {
   }
 
   onDataReceived(dataList) {
-    this.trace.x = [];
-    this.trace.y = [];
-    this.trace.z = [];
-
     this.data = {};
     if (dataList.length < 1) {
       console.log('No data', dataList);
@@ -431,7 +330,7 @@ class PlotlyPanelCtrl extends MetricsPanelCtrl {
         z: null,
       };
 
-      //   console.log( "plotly data", dataList);
+      // console.log( "plotly data", dataList);
       let cfg = this.panel.pconfig;
       let mapping = cfg.mapping;
       let key = {
@@ -450,82 +349,50 @@ class PlotlyPanelCtrl extends MetricsPanelCtrl {
       };
       this.data[key.name] = key;
       this.data[idx.name] = idx;
+      /////////////////////////////////////////////////////////////// dataList
       for (let i = 0; i < dataList.length; i++) {
-        if ('table' === dataList[i].type) {
-          const table = dataList[i];
-          if (i > 0) {
-            throw {message: 'Multiple tables not (yet) supported'};
+        let datapoints: any[] = dataList[i].datapoints;
+        if (datapoints.length > 0) {
+          let val = {
+            name: dataList[i].target,
+            type: 'number',
+            missing: 0,
+            idx: i,
+            points: [],
+          };
+          if (_.isString(datapoints[0][0])) {
+            val.type = 'string';
+          } else if (_.isBoolean(datapoints[0][0])) {
+            val.type = 'boolean';
           }
 
-          for (let k = 0; k < table.rows.length; k++) {
-            idx.points.push(k);
+          // Set the default mapping values
+          if (i === 0) {
+            dmapping.x = val.name;
+          } else if (i === 1) {
+            dmapping.y = val.name;
+          } else if (i === 2) {
+            dmapping.z = val.name;
           }
 
-          for (let j = 0; j < table.columns.length; j++) {
-            const col = table.columns[j];
-            let val = {
-              name: col.text,
-              type: col.type,
-              missing: 0,
-              idx: j,
-              points: [],
-            };
-            if (j == 0 && val.type === 'time') {
-              // InfluxDB time
-              val = key; // will overwrite the time field
+          /////////////////////////////////////////// this.data['direction'] = ....
+          this.data[val.name] = val;
+          if (key.points.length === 0) {
+            for (let j = 0; j < datapoints.length; j++) {
+              key.points.push(datapoints[j][1]);
+              val.points.push(datapoints[j][0]);
+              idx.points.push(j);
             }
-
-            if (!val.type) {
-              val.type = 'number';
-            }
-            for (let k = 0; k < table.rows.length; k++) {
-              val.points.push(table.rows[k][j]);
-            }
-            this.data[val.name] = val;
-          }
-        } else {
-          let datapoints: any[] = dataList[i].datapoints;
-          if (datapoints.length > 0) {
-            let val = {
-              name: dataList[i].target,
-              type: 'number',
-              missing: 0,
-              idx: i,
-              points: [],
-            };
-            if (_.isString(datapoints[0][0])) {
-              val.type = 'string';
-            } else if (_.isBoolean(datapoints[0][0])) {
-              val.type = 'boolean';
-            }
-
-            // Set the default mapping values
-            if (i === 0) {
-              dmapping.x = val.name;
-            } else if (i === 1) {
-              dmapping.y = val.name;
-            } else if (i === 2) {
-              dmapping.z = val.name;
-            }
-
-            this.data[val.name] = val;
-            if (key.points.length === 0) {
-              for (let j = 0; j < datapoints.length; j++) {
-                key.points.push(datapoints[j][1]);
-                val.points.push(datapoints[j][0]);
-                idx.points.push(j);
+          } else {
+            for (let j = 0; j < datapoints.length; j++) {
+              if (j >= key.points.length) {
+                break;
               }
-            } else {
-              for (let j = 0; j < datapoints.length; j++) {
-                if (j >= key.points.length) {
-                  break;
-                }
-                // Make sure it is from the same timestamp
-                if (key.points[j] === datapoints[j][1]) {
-                  val.points.push(datapoints[j][0]);
-                } else {
-                  val.missing = val.missing + 1;
-                }
+              // Make sure it is from the same timestamp
+              if (key.points[j] === datapoints[j][1]) {
+                val.points.push(datapoints[j][0]);
+              } else {
+                val.missing = val.missing + 1;
               }
             }
           }
@@ -543,8 +410,7 @@ class PlotlyPanelCtrl extends MetricsPanelCtrl {
         mapping.z = dmapping.z;
       }
 
-      // console.log( "GOT", this.data, mapping );
-
+      ///////////////////////////////////////// dX, dY ///// REFACTOR ME
       let dX = this.data[mapping.x];
       let dY = this.data[mapping.y];
       let dZ = null;
@@ -560,50 +426,135 @@ class PlotlyPanelCtrl extends MetricsPanelCtrl {
         dX = '@time';
       }
 
-      this.trace.ts = key.points;
-      this.trace.x = dX.points;
-      this.trace.y = dY.points;
+      this.trace.ts = key.points; //// <===========
 
-      if (cfg.settings.type === 'scatter3d') {
-        dZ = this.data[mapping.z];
-        if (!dZ) {
-          throw {message: 'Unable to find Z: ' + mapping.z};
+      //////////////////////////////////// this.trace.x, this.trace.y
+      if (cfg.settings.plot === 'scatter') {
+        this.trace.theta = dX.points;
+        this.trace.r = dY.points;
+        this.trace.marker = $.extend(true, {}, cfg.settings.marker);
+        // this.trace.line = $.extend(true, {}, cfg.settings.line);
+
+        if (mapping.size) {
+          dS = this.data[mapping.size];
+          if (!dS) {
+            throw {message: 'Unable to find Size: ' + mapping.size};
+          }
+          this.trace.marker.size = dS.points; //// <===========
         }
-        this.layout.scene.xaxis.title = dX.name;
-        this.layout.scene.yaxis.title = dY.name;
-        this.layout.scene.zaxis.title = dZ.name;
 
-        this.trace.z = dZ.points;
-        console.log('3D', this.layout);
-      } else {
-        this.layout.xaxis.title = dX.name;
-        this.layout.yaxis.title = dY.name;
-      }
-
-      this.trace.marker = $.extend(true, {}, cfg.settings.marker);
-      this.trace.line = $.extend(true, {}, cfg.settings.line);
-
-      if (mapping.size) {
-        dS = this.data[mapping.size];
-        if (!dS) {
-          throw {message: 'Unable to find Size: ' + mapping.size};
+        // Set the marker colors
+        if (cfg.settings.color_option === 'ramp') {
+          if (!mapping.color) {
+            mapping.color = idx.name;
+          }
+          dC = this.data[mapping.color];
+          if (!dC) {
+            throw {message: 'Unable to find Color: ' + mapping.color};
+          }
+          this.trace.marker.color = dC.points; //// <===========
         }
-        this.trace.marker.size = dS.points;
-      }
 
-      // Set the marker colors
-      if (cfg.settings.color_option === 'ramp') {
-        if (!mapping.color) {
-          mapping.color = idx.name;
+        this.trace.fill = 'None';
+        this.traces = [this.trace];
+      } else if (cfg.settings.plot === 'windrose') {
+        // classify all the datapoint into n directions
+        let theta = dX.points;
+        let r = dY.points;
+        let num_points = theta.length;
+
+        let points_on_dir = [];
+        let num_angle = 32;
+        let angle = 360 / num_angle;
+
+        // initialize the array of point_array_in_direction
+        for (let angle_idx = 0; angle_idx < num_angle; angle_idx++) {
+          points_on_dir.push([]);
         }
-        dC = this.data[mapping.color];
-        if (!dC) {
-          throw {message: 'Unable to find Color: ' + mapping.color};
+
+        // classify points into it
+        for (let p = 0; p < num_points; p++) {
+          let angle_idx = Math.floor(theta[p] / angle);
+          points_on_dir[angle_idx].push(r[p]);
         }
-        this.trace.marker.color = dC.points;
+
+        // compute m percentiles for all n directions
+        let percentile_num = 5.0;
+        let division = 100 / percentile_num;
+        let petals = [];
+        for (let percentile_idx = 0; percentile_idx < percentile_num; percentile_idx++) {
+          petals.push([]);
+          for (let angle_idx = 0; angle_idx < num_angle; angle_idx++) {
+            let percentage = percentile(
+              division * percentile_idx,
+              points_on_dir[angle_idx]
+            ); ///// <============= wrong here
+            let ratio = division * points_on_dir[angle_idx].length / num_points;
+            petals[percentile_idx].push(percentage * ratio);
+          }
+        }
+
+        // generate m traces, each responds to one percentile
+        this.traces = [];
+
+        // prepare the angles
+        let thetas = [];
+        for (let angle_idx = 0; angle_idx < num_angle; angle_idx++) {
+          thetas.push(angle_idx * angle);
+        }
+
+        let angs = [];
+        for (let i = 0; i < percentile_num; i++) {
+          let arr = this.expand_to_fan(thetas, petals[i]);
+          angs = arr[0];
+          petals[i] = arr[1];
+        }
+        thetas = angs;
+
+        // and then the traces
+        for (let percentile_idx = 0; percentile_idx < percentile_num; percentile_idx++) {
+          var trace = {};
+          trace['name'] = 'percentile_' + percentile_idx * division;
+          trace['type'] = 'scatterpolar';
+          trace['mode'] = 'lines';
+          trace['theta'] = thetas;
+          trace['r'] = petals[percentile_idx];
+          trace['fill'] = 'toself';
+          trace['opacity'] = 1;
+          trace['line'] = {
+            color: 'rgb(0,0,0)',
+            width: 1,
+          };
+          trace['fillcolor'] =
+            'hsl(' +
+            (255 * percentile_idx / (percentile_num - 1)).toString() +
+            ',80% ,50%)';
+          console.log(trace['fillcolor']);
+          this.traces.unshift(trace);
+        }
       }
     }
     this.render();
+  }
+
+  expand_to_fan(ang_arr, r_arr) {
+    let pt_num = 15;
+    let ang_arr_360 = ang_arr.slice();
+    ang_arr_360.push(360);
+    let new_ang_arr = [];
+    let new_r_arr = [];
+    for (let p = 0; p < ang_arr.length; p++) {
+      let d_ang = (ang_arr_360[p + 1] - ang_arr[p]) / pt_num;
+      for (let i = 0; i < pt_num; i++) {
+        let ang = ang_arr[p] + d_ang * i;
+        new_ang_arr.push(ang);
+        new_r_arr.push(r_arr[p]);
+      }
+      new_ang_arr.push(0);
+      new_r_arr.push(0);
+    }
+
+    return [new_ang_arr, new_r_arr];
   }
 
   onConfigChanged() {
@@ -614,19 +565,15 @@ class PlotlyPanelCtrl extends MetricsPanelCtrl {
     }
 
     let cfg = this.panel.pconfig;
-    this.trace.type = cfg.settings.type;
-    this.trace.mode = cfg.settings.mode;
 
-    let axis = [this.panel.pconfig.layout.xaxis, this.panel.pconfig.layout.yaxis];
-    for (let i = 0; i < axis.length; i++) {
-      if (axis[i].rangemode === 'between') {
-        if (axis[i].range == null) {
-          axis[i].range = [0, null];
-        }
-      } else {
-        axis[i].range = null;
-      }
-    }
+    this.trace.type = 'scatterpolar';
+
+    let modemapping = {
+      scatter: 'markers',
+      windrose: 'lines',
+    };
+    this.trace.mode = modemapping[cfg.settings.plot];
+
     this.refresh();
   }
 
