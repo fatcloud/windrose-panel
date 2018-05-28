@@ -7,12 +7,7 @@ import moment from 'moment';
 import angular from 'angular';
 import $ from 'jquery';
 
-import percentile from './percentile';
 import * as Plotly from './lib/plotly.min';
-
-var windRoseTestLayout = {
-  radialaxis: {ticksuffix: '%'},
-};
 
 class PlotlyPanelCtrl extends MetricsPanelCtrl {
   static templateUrl = 'templates/module.html';
@@ -44,17 +39,13 @@ class PlotlyPanelCtrl extends MetricsPanelCtrl {
           showscale: true,
         },
         color_option: 'ramp',
+        petals: 32,
+        wind_speed_interval: 2,
       },
       layout: {
-        //radialaxis: {ticksuffix: '%'},
         autosize: false,
         showlegend: true,
-        legend: {
-          orientation: 'v',
-          x: 1,
-          y: 1,
-        },
-        dragmode: 'lasso', // (enumerated: "zoom" | "pan" | "select" | "lasso" | "orbit" | "turntable" )
+        legend: {orientation: 'v'},
         hovermode: 'closest',
         plot_bgcolor: 'transparent',
         paper_bgcolor: 'transparent', // transparent?
@@ -67,6 +58,16 @@ class PlotlyPanelCtrl extends MetricsPanelCtrl {
           b: 45,
           l: 65,
           r: 20,
+        },
+        polar: {
+          radialaxis: {
+            angle: 90,
+            ticksuffix: '%',
+          },
+          angularaxis: {
+            rotation: 0,
+            direction: 'counterclockwise',
+          },
         },
         angle: {},
         distance: {},
@@ -96,10 +97,6 @@ class PlotlyPanelCtrl extends MetricsPanelCtrl {
     // defaults configs
     _.defaultsDeep(this.panel, this.defaults);
 
-    // Update existing configurations
-    this.panel.pconfig.layout.paper_bgcolor = 'transparent';
-    this.panel.pconfig.layout.plot_bgcolor = 'transparent'; //this.panel.pconfig.layout.paper_bgcolor;
-
     // get the css rule of grafana graph axis text
     const labelStyle = this.getCssRule('div.flot-text');
     if (labelStyle) {
@@ -112,10 +109,6 @@ class PlotlyPanelCtrl extends MetricsPanelCtrl {
         .parse(color)
         .scale('a', 0.22)
         .toString();
-
-      // set gridcolor (like grafana graph)
-      // this.panel.pconfig.layout.xaxis.gridcolor = color;
-      // this.panel.pconfig.layout.yaxis.gridcolor = color;
     }
 
     let cfg = this.panel.pconfig;
@@ -240,63 +233,7 @@ class PlotlyPanelCtrl extends MetricsPanelCtrl {
       this.layout = $.extend(true, {}, this.panel.pconfig.layout);
       this.layout.height = this.height;
       this.layout.width = rect.width;
-
       Plotly.newPlot(this.graph, data, this.layout, options);
-      // ////////////////////////// WORKAROUND NOTICE: Get rid of white background
-      // var plotbg = document.getElementsByClassName('plotbg');
-      // if (typeof plotbg[0] != 'undefined'){
-      //   plotbg[0].children[0].setAttribute('style', 'fill-opacity: 0');
-      // }
-
-      this.graph.on('plotly_click', data => {
-        for (let i = 0; i < data.points.length; i++) {
-          let idx = data.points[i].pointNumber;
-          let ts = this.trace.ts[idx];
-          // console.log( 'CLICK!!!', ts, data );
-          let msg =
-            data.points[i].x.toPrecision(4) + ', ' + data.points[i].y.toPrecision(4);
-          this.$rootScope.appEvent('alert-success', [
-            msg,
-            '@ ' + this.dashboard.formatDate(moment(ts)),
-          ]);
-        }
-      });
-
-      this.graph.on('plotly_selected', data => {
-        if (data.points.length === 0) {
-          console.log('Nothing Selected', data);
-          return;
-        }
-
-        console.log('SELECTED', data);
-
-        let min = Number.MAX_SAFE_INTEGER;
-        let max = Number.MIN_SAFE_INTEGER;
-
-        for (let i = 0; i < data.points.length; i++) {
-          let idx = data.points[i].pointNumber;
-          let ts = this.trace.ts[idx];
-          min = Math.min(min, ts);
-          max = Math.max(max, ts);
-        }
-
-        // At least 2 seconds
-        min -= 1000;
-        max += 1000;
-
-        let range = {from: moment.utc(min), to: moment.utc(max)};
-
-        console.log('SELECTED!!!', min, max, data.points.length, range);
-
-        this.timeSrv.setTime(range);
-
-        // rebuild the graph after query
-        if (this.graph) {
-          Plotly.Plots.purge(this.graph);
-          this.graph.innerHTML = '';
-          this.initalized = false;
-        }
-      });
     } else {
       Plotly.redraw(this.graph);
     }
@@ -456,6 +393,7 @@ class PlotlyPanelCtrl extends MetricsPanelCtrl {
         }
 
         this.trace.fill = 'None';
+        this.trace.type = 'scatterpolar';
         this.traces = [this.trace];
       } else if (cfg.settings.plot === 'windrose') {
         // classify all the datapoint into n directions
@@ -464,47 +402,70 @@ class PlotlyPanelCtrl extends MetricsPanelCtrl {
         let num_points = theta.length;
 
         let points_on_dir = [];
-        let num_angle = 32;
+        let num_angle = cfg.settings.petals;
         let angle = 360 / num_angle;
 
-        // initialize the array of point_array_in_direction
-        for (let angle_idx = 0; angle_idx < num_angle; angle_idx++) {
-          points_on_dir.push([]);
-        }
+        for (let i = 0; i < num_angle; i++) points_on_dir.push([]);
 
         // classify points into it
         for (let p = 0; p < num_points; p++) {
-          let angle_idx = Math.floor(theta[p] / angle);
+          let angle_idx = Math.floor((theta[p] / angle + 0.5) % num_angle);
           points_on_dir[angle_idx].push(r[p]);
         }
 
-        // compute m percentiles for all n directions
-        let percentile_num = 5.0;
-        let division = 100 / percentile_num;
+        // compute m levels for all n directions
+
         let petals = [];
-        for (let percentile_idx = 0; percentile_idx < percentile_num; percentile_idx++) {
+
+        // find max wind speed and speed levels
+        let max_speed = Math.max(...r);
+        let bin_size = cfg.settings.wind_speed_interval; //  max_speed / bin_num);
+        let bin_num = Math.ceil(max_speed / bin_size);
+        let speed_levels = [];
+        for (let bin_idx = 0; bin_idx <= bin_num; bin_idx++) {
+          let level = bin_size * bin_idx;
+          speed_levels.push(level);
+        }
+
+        // prepare base lengths
+        let base_lengths = [];
+        base_lengths.length = num_angle;
+        base_lengths.fill(0);
+
+        // compute the petal lengths
+        for (let bin_idx = 0; bin_idx < bin_num; bin_idx++) {
           petals.push([]);
+
           for (let angle_idx = 0; angle_idx < num_angle; angle_idx++) {
-            let percentage = percentile(
-              division * percentile_idx,
-              points_on_dir[angle_idx]
-            ); ///// <============= wrong here
-            let ratio = division * points_on_dir[angle_idx].length / num_points;
-            petals[percentile_idx].push(percentage * ratio);
+            let pts = points_on_dir[angle_idx];
+            let bin_counter = 0;
+
+            for (let idx = 0; idx < pts.length; idx++) {
+              if (
+                pts[idx] >= speed_levels[bin_idx] &&
+                pts[idx] < speed_levels[bin_idx + 1]
+              )
+                bin_counter++;
+            }
+
+            let total_length = pts.length / num_points;
+            let delta_length = bin_counter / pts.length * total_length;
+            base_lengths[angle_idx] += 100 * delta_length;
+            petals[bin_idx].push(base_lengths[angle_idx]);
           }
         }
 
-        // generate m traces, each responds to one percentile
+        // generate m traces
         this.traces = [];
 
         // prepare the angles
         let thetas = [];
         for (let angle_idx = 0; angle_idx < num_angle; angle_idx++) {
-          thetas.push(angle_idx * angle);
+          thetas.push(angle_idx * angle - 0.5 * angle);
         }
 
         let angs = [];
-        for (let i = 0; i < percentile_num; i++) {
+        for (let i = 0; i < bin_num; i++) {
           let arr = this.expand_to_fan(thetas, petals[i]);
           angs = arr[0];
           petals[i] = arr[1];
@@ -512,24 +473,24 @@ class PlotlyPanelCtrl extends MetricsPanelCtrl {
         thetas = angs;
 
         // and then the traces
-        for (let percentile_idx = 0; percentile_idx < percentile_num; percentile_idx++) {
+        for (let bin_idx = 0; bin_idx < bin_num; bin_idx++) {
           var trace = {};
-          trace['name'] = 'percentile_' + percentile_idx * division;
+          let lower_level = speed_levels[bin_idx];
+          let upper_level = speed_levels[bin_idx + 1];
+          trace['name'] =
+            lower_level.toString() + ' - ' + upper_level.toString() + ' m/s';
           trace['type'] = 'scatterpolar';
           trace['mode'] = 'lines';
           trace['theta'] = thetas;
-          trace['r'] = petals[percentile_idx];
+          trace['r'] = petals[bin_idx];
           trace['fill'] = 'toself';
           trace['opacity'] = 1;
           trace['line'] = {
             color: 'rgb(0,0,0)',
-            width: 1,
+            width: 0,
           };
           trace['fillcolor'] =
-            'hsl(' +
-            (255 * percentile_idx / (percentile_num - 1)).toString() +
-            ',80% ,50%)';
-          console.log(trace['fillcolor']);
+            'hsl(' + (255 * (1 - bin_idx / (bin_num - 1))).toString() + ',100% ,60%)'; //',' + (50 + 50 * (1 - bin_idx / (bin_num - 1))).toString() + '% ,60%)';
           this.traces.unshift(trace);
         }
       }
@@ -564,15 +525,21 @@ class PlotlyPanelCtrl extends MetricsPanelCtrl {
       this.initalized = false;
     }
 
-    let cfg = this.panel.pconfig;
+    // this.trace.type = 'scatterpolar';
 
-    this.trace.type = 'scatterpolar';
+    let plot_type = this.panel.pconfig.settings.plot;
 
-    let modemapping = {
+    let plotmapping = {
       scatter: 'markers',
       windrose: 'lines',
     };
-    this.trace.mode = modemapping[cfg.settings.plot];
+    this.trace.mode = plotmapping[plot_type];
+
+    let legendmapping = {
+      scatter: false,
+      windrose: true,
+    };
+    this.panel.pconfig.layout.showlegend = legendmapping[plot_type];
 
     this.refresh();
   }

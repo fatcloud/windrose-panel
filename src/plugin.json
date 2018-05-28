@@ -16,8 +16,8 @@
     },
     "links": [{"name": "Plot.ly", "url": "https://plot.ly/javascript/"}],
     "screenshots": [
-      {"name": "Showcase", "path": "src/img/screenshot-scatter.png"},
-      {"name": "Options", "path": "src/img/screenshot-options.png"}
+      {"name": "Showcase", "path": "src/img/twocharts.png"},
+      {"name": "Options", "path": "src/img/windroseoptions.png"}
     ],
     "version": "%VERSION%",
     "updated": "%TODAY%"

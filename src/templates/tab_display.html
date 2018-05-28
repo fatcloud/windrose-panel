@@ -31,22 +31,43 @@
       </div>
     </div>
 
+    <gf-form-switch class="gf-form" label="Toolbar" label-class="gf-form-label width-7" checked="ctrl.panel.pconfig.settings.displayModeBar" on-change="ctrl.onConfigChanged()"></gf-form-switch>
+  </div>
+
+  <div class="section gf-form-group" ng-show="ctrl.panel.pconfig.settings.plot === 'windrose'">
+    <h5 class="section-heading">Windrose</h5>
+
     <div class="gf-form">
-      <label class="gf-form-label width-7">Drag</label>
-      <div class="gf-form-select-wrapper max-width-14">
-        <select class="gf-form-input" ng-model="ctrl.panel.pconfig.layout.dragmode" ng-change="ctrl.onConfigChanged()">
-          <option value="zoom">zoom</option>
-          <option value="pan">pan</option>
-          <option value="lasso">lasso</option>
-          <option value="select">select</option>
+      <label class="gf-form-label width-10">Petals</label>
+      <input type="number" class="gf-form-input width-10" ng-model="ctrl.panel.pconfig.settings.petals" spellcheck="false" placeholder="5" ng-blur="ctrl.onConfigChanged()"/>
+    </div>
+
+    <div class="gf-form">
+      <label class="gf-form-label width-10">Wind speed interval</label>
+      <input type="number" class="gf-form-input width-10" ng-model="ctrl.panel.pconfig.settings.wind_speed_interval" spellcheck="false" placeholder="5" ng-blur="ctrl.onConfigChanged()"/>
+    </div>
+
+    <div class="gf-form">
+      <label class="gf-form-label width-10">Rotation</label>
+      <input type="number" class="gf-form-input width-10" ng-model="ctrl.panel.pconfig.layout.polar.angularaxis.rotation" spellcheck="false" placeholder="5" ng-blur="ctrl.onConfigChanged()"/>
+    </div>
+
+    <div class="gf-form">
+      <label class="gf-form-label width-10">Direction</label>
+      <div class="gf-form-select-wrapper width-10">
+        <select class="gf-form-input" ng-model="ctrl.panel.pconfig.layout.polar.angularaxis.direction" ng-change="ctrl.onConfigChanged()">
+          <option value="clockwise">clockwise</option>
+          <option value="counterclockwise">counterclockwise</option>
         </select>
       </div>
     </div>
 
-    <gf-form-switch class="gf-form" label="Toolbar" label-class="gf-form-label width-7" checked="ctrl.panel.pconfig.settings.displayModeBar" on-change="ctrl.onConfigChanged()"></gf-form-switch>
   </div>
 
-  <div class="section gf-form-group" ng-show="ctrl.panel.pconfig.settings.type != 'windrose'">
+
+  <!-- Marker settings -->
+
+  <div class="section gf-form-group" ng-show="ctrl.panel.pconfig.settings.plot === 'scatter'">
     <h5 class="section-heading">Markers</h5>
 
     <div class="gf-form">
