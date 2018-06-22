@@ -11,10 +11,10 @@
     },
     "keywords": ["plotly", "windrose", "panel"],
     "logos": {
-      "small": "img/plotly_logo.svg",
-      "large": "img/plotly_logo.svg"
+      "small": "img/windrose_logo.svg",
+      "large": "img/windrose_logo.svg"
     },
-    "links": [{"name": "Plot.ly", "url": "https://plot.ly/javascript/"}],
+    "links": [{"name": "Github", "url": "https://github.com/fatcloud/windrose-panel"}],
     "screenshots": [
       {"name": "Showcase", "path": "src/img/twocharts.png"},
       {"name": "Options", "path": "src/img/windroseoptions.png"}
