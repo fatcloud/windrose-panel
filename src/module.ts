@@ -19,9 +19,6 @@ class PlotlyPanelCtrl extends MetricsPanelCtrl {
   defaults = {
     pconfig: {
       mapping: {
-        x: null,
-        y: null,
-        z: null,
         color: null,
         size: null,
       },
@@ -50,14 +47,8 @@ class PlotlyPanelCtrl extends MetricsPanelCtrl {
         plot_bgcolor: 'transparent',
         paper_bgcolor: 'transparent', // transparent?
         font: {
-          color: '#D8D9DA',
+          color: 'rgb(0,0,0)',
           family: '"Open Sans", Helvetica, Arial, sans-serif',
-        },
-        margin: {
-          t: 0,
-          b: 45,
-          l: 65,
-          r: 20,
         },
         polar: {
           radialaxis: {
@@ -65,12 +56,11 @@ class PlotlyPanelCtrl extends MetricsPanelCtrl {
             ticksuffix: '%',
           },
           angularaxis: {
+            dtick: 22.5,
             rotation: 0,
             direction: 'counterclockwise',
           },
         },
-        angle: {},
-        distance: {},
       },
     },
   };
@@ -102,14 +92,15 @@ class PlotlyPanelCtrl extends MetricsPanelCtrl {
     if (labelStyle) {
       let color = labelStyle.style.color || this.panel.pconfig.layout.font.color;
       // set the panel font color to grafana graph axis text color
-      this.panel.pconfig.layout.font.color = color;
-
-      // make color more transparent
-      color = $.color
-        .parse(color)
-        .scale('a', 0.22)
-        .toString();
+      this.panel.pconfig.layout.font.color = 'rgb(110,110,110)'; //color;
     }
+
+    // make color more transparent
+    //   color = $.color
+    //     .parse(color)
+    //     .scale('a', 0.22)
+    //     .toString();
+    // }
 
     let cfg = this.panel.pconfig;
     this.trace = {};
@@ -142,6 +133,7 @@ class PlotlyPanelCtrl extends MetricsPanelCtrl {
 
   onResize() {
     this.sizeChanged = true;
+    console.log('sz');
   }
 
   onDataError(err) {
@@ -180,7 +172,6 @@ class PlotlyPanelCtrl extends MetricsPanelCtrl {
       {
         disp: 'Angle',
         idx: 1,
-        config: cfg.layout.angle,
         metric: name => {
           if (name) {
             cfg.mapping.x = name;
@@ -191,7 +182,6 @@ class PlotlyPanelCtrl extends MetricsPanelCtrl {
       {
         disp: 'Distance',
         idx: 2,
-        config: cfg.layout.distance,
         metric: name => {
           if (name) {
             cfg.mapping.y = name;
@@ -219,6 +209,10 @@ class PlotlyPanelCtrl extends MetricsPanelCtrl {
       return;
     }
 
+    ////////////// WORKAROUND NOTICE: move graph down a bit to stop the title from blocking topmost angletick
+    let top_padding = 22;
+    $('.main-svg').css('padding-top', top_padding.toString() + 'px');
+
     if (!this.initalized) {
       let options = {
         showLink: false,
@@ -231,7 +225,7 @@ class PlotlyPanelCtrl extends MetricsPanelCtrl {
       let rect = this.graph.getBoundingClientRect();
 
       this.layout = $.extend(true, {}, this.panel.pconfig.layout);
-      this.layout.height = this.height;
+      this.layout.height = this.height; // - top_padding;
       this.layout.width = rect.width;
       Plotly.newPlot(this.graph, data, this.layout, options);
     } else {
@@ -240,14 +234,21 @@ class PlotlyPanelCtrl extends MetricsPanelCtrl {
 
     if (this.sizeChanged && this.graph && this.layout) {
       let rect = this.graph.getBoundingClientRect();
+      this.layout.height = this.height; // - top_padding;
       this.layout.width = rect.width;
-      this.layout.height = this.height;
-
-      // ////////////// WORKAROUND NOTICE: get rid of this error "Resize must be passed a displayed plot div element."
-      let e = window.getComputedStyle(this.graph).display;
-      if (!e || 'none' === e) return;
       Plotly.Plots.resize(this.graph);
     }
+
+    // if (this.sizeChanged && this.graph && this.layout) {
+    //   let rect = this.graph.getBoundingClientRect();
+    //   this.layout.width = rect.width;
+
+    //   ////////////// WORKAROUND NOTICE: get rid of this error "Resize must be passed a displayed plot div element."
+    //   let e = window.getComputedStyle(this.graph).display;
+    //   if (!e || 'none' === e) return;
+    //   Plotly.Plots.resize(this.graph);
+    // }
+
     this.sizeChanged = false;
     this.initalized = true;
   }
@@ -526,7 +527,6 @@ class PlotlyPanelCtrl extends MetricsPanelCtrl {
     }
 
     // this.trace.type = 'scatterpolar';
-
     let plot_type = this.panel.pconfig.settings.plot;
 
     let plotmapping = {
@@ -540,6 +540,12 @@ class PlotlyPanelCtrl extends MetricsPanelCtrl {
       windrose: true,
     };
     this.panel.pconfig.layout.showlegend = legendmapping[plot_type];
+
+    let radialaxismapping = {
+      scatter: {ticksuffix: ' m/s', angle: 90},
+      windrose: {ticksuffix: '%', angle: 90},
+    };
+    this.panel.pconfig.layout.polar.radialaxis = radialaxismapping[plot_type];
 
     this.refresh();
   }
