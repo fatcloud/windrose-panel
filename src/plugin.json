@@ -4,12 +4,12 @@
   "id": "fatcloud-windrose-panel",
 
   "info": {
-    "description": "windrose plots",
+    "description": "Make windrose plots",
     "author": {
       "name": "Cloud",
       "url": "https://github.com/fatcloud"
     },
-    "keywords": ["plotly", "windrose", "panel"],
+    "keywords": ["windrose", "panel"],
     "logos": {
       "small": "img/windrose_logo.svg",
       "large": "img/windrose_logo.svg"
