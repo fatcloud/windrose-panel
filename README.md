@@ -4,9 +4,9 @@ Render metrics into a windrose chart.
 
 ### Screenshots
 
-![](https://i.imgur.com/l6Pnc5F.png)
+![](https://i.imgur.com/ADjvKwA.png)
 
-![](https://i.imgur.com/GQkZpEi.png)
+![](https://i.imgur.com/HXLgwLB.png)
 
 ### Environments
 
