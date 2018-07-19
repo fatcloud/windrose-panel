@@ -16,11 +16,11 @@
     },
     "links": [{"name": "Github", "url": "https://github.com/fatcloud/windrose-panel"}],
     "screenshots": [
-      {"name": "Showcase", "path": "src/img/twocharts.png"},
-      {"name": "Options", "path": "src/img/windroseoptions.png"}
+      {"name": "Showcase", "path": "img/twocharts.png"},
+      {"name": "Options", "path": "img/windroseoptions.png"}
     ],
     "version": "0.7.0",
-    "updated": "2018-06-23"
+    "updated": "2018-07-19"
   },
 
   "dependencies": {
