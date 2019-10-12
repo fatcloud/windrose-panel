@@ -461,6 +461,9 @@ System.register(["app/plugins/sdk", "lodash", "jquery", "./lib/plotly.min"], fun
                     elem.on('mousemove', function (evt) {
                         _this.mouse = evt;
                     });
+                    ctrl.events.on("render", function () {
+                        ctrl.renderingCompleted();
+                    });
                 };
                 PlotlyPanelCtrl.prototype.getSymbolSegs = function () {
                     var _this = this;

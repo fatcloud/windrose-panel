@@ -556,6 +556,11 @@ class PlotlyPanelCtrl extends MetricsPanelCtrl {
     elem.on('mousemove', evt => {
       this.mouse = evt;
     });
+
+    ctrl.events.on("render", () => {    
+      ctrl.renderingCompleted();
+    });
+
   }
 
   //---------------------------
