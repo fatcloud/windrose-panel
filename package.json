@@ -24,7 +24,7 @@
     "semi": true
   },
   "dependencies": {
-    "lodash": "^4.17.4",
+    "lodash": "^4.17.13",
     "moment": "^2.18.1",
     "percentile": "^1.2.0",
     "plotly.js": "^1.35",
